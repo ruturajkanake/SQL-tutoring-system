@@ -4,11 +4,14 @@ from typing import Optional, List, Dict, Any, Tuple, Callable
 from sqlglot import parse_one
 from sqlglot.expressions import Column, Table, Join, Subquery, Select, Group, Window, Func, CTE
 from sqlglot.errors import ParseError
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends
+from fastapi.responses import RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from pathlib import Path
+from auth import get_current_user, verify_google_token, create_session_jwt
 from semantic_diff import semantic_diff
+from db import init_db, get_db
 import duckdb
 import re
 import json
@@ -16,6 +19,7 @@ import traceback
 import requests
 import os
 import html
+import httpx
 
 # -----------------------
 # LLM integration: Fireworks Serverless API (Level-4 hints)
@@ -1167,6 +1171,15 @@ class HintRequest(BaseModel):
     question_number: int
     hint_level: int
 
+class FeedbackRequest(BaseModel):
+    question_number: int
+    hint_level: int
+    helpful: bool
+
+class AuthRequest(BaseModel):
+    token: str
+
+conn = get_db()
 
 # ----------------------------
 # Helpers
@@ -1177,6 +1190,11 @@ def get_question_or_404(qid: int):
             return q
     raise HTTPException(status_code=404, detail="Invalid question number")
 
+@app.on_event("startup")
+def startup():
+    init_db()
+
+
 @app.get("/")
 def read_root():
     return {"message": "SQL Hinting Service is running."}
@@ -1186,7 +1204,7 @@ def read_root():
 # API 1 — Validate SQL Output
 # ----------------------------
 @app.post("/validate")
-def validate_sql(req: ValidateRequest):
+def validate_sql(req: ValidateRequest, user_id: str = Depends(get_current_user)):
 
     question = get_question_or_404(req.question_number)
     ref_sql = question["answer_ref"]
@@ -1196,6 +1214,14 @@ def validate_sql(req: ValidateRequest):
     exec_ref = execute_in_memory(GLOBAL_SETUP_SQL, ref_sql)
 
     equal, err = compare_results(exec_student, exec_ref)
+
+    if equal:
+        conn.execute(
+            'INSERT OR IGNORE INTO user_progress VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET question_number = excluded.question_number',
+            (user_id, req.question_number)
+        )
+        conn.commit()
+
 
     return {
         "success": bool(equal),
@@ -1209,7 +1235,7 @@ def validate_sql(req: ValidateRequest):
 # API 2 — Validate + Hint
 # ----------------------------
 @app.post("/hint")
-def get_hint_api(req: HintRequest):
+def get_hint_api(req: HintRequest, user_id: str = Depends(get_current_user)):
 
     question = get_question_or_404(req.question_number)
     ref_sql = question["answer_ref"]
@@ -1225,6 +1251,14 @@ def get_hint_api(req: HintRequest):
         setup_sql=GLOBAL_SETUP_SQL
     )
 
+    if equal:
+        conn.execute(
+            'INSERT OR IGNORE INTO user_progress VALUES (?, ?) ON CONFLICT(user_id) DO UPDATE SET question_number = excluded.question_number',
+            (user_id, req.question_number)
+        )
+        conn.commit()
+
+
     return {
         "success": bool(equal),
         "error": err,
@@ -1239,3 +1273,31 @@ def get_hint_api(req: HintRequest):
         }
     }
 
+@app.post("/auth/google")
+def google_login(req: AuthRequest):
+    email = verify_google_token(req.token)
+    session = create_session_jwt(email)
+    return {"access_token": session}
+
+@app.post("/feedback")
+def hint_feedback(
+    req: FeedbackRequest,
+    user_id: str = Depends(get_current_user)
+):
+    conn.execute(
+        "INSERT OR REPLACE INTO hint_feedback VALUES (?, ?, ?, ?)",
+        (user_id, req.question_number, req.hint_level, req.helpful)
+    )
+    conn.commit()
+    return {"ok": True}
+
+@app.get("/progress")
+def get_progress(user_id: str = Depends(get_current_user)):
+    row = conn.execute(
+        "SELECT question_number FROM user_progress WHERE user_id=?",
+        (user_id,)
+    ).fetchone()
+    if row:
+        return {"question_number": row[0], "user_id": user_id}
+    else:
+        return {"question_number": 0, "user_id": user_id}
