@@ -19,7 +19,6 @@ import traceback
 import requests
 import os
 import html
-import httpx
 
 # -----------------------
 # LLM integration: Fireworks Serverless API (Level-4 hints)
