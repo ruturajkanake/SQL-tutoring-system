@@ -113,14 +113,20 @@ export default function App() {
   }
 
   const getProgress = async () => {
-    const resp = await fetch(GET_PROGRESS_API, {
-      headers: {"Authorization": `Bearer ${getAccessToken()}`}
-    });
-    const data = await resp.json();
-    console.log("Progress:", data);
-    setProgress(data.question_number + 1);
-    setUserId(data.user_id);
-    setId(data.question_number + 1);
+    try {
+      const resp = await fetch(GET_PROGRESS_API, {
+        headers: {"Authorization": `Bearer ${getAccessToken()}`}
+      });
+      if (resp.status === 200) {
+        const data = await resp.json();
+        console.log("Progress:", data);
+        setProgress(data.question_number + 1);
+        setUserId(data.user_id);
+        setId(data.question_number + 1);
+      }
+    } catch (error) {
+    }
+    
   }
 
   const runQuery = async () => {
