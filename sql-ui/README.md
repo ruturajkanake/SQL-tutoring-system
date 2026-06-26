@@ -1,16 +1,74 @@
-# React + Vite
+# SQL Tutoring System - Web UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React-based web interface for the SQL Tutoring System. This frontend provides an interactive environment for students to practice SQL queries with real-time feedback and automated hint generation.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Monaco Editor**: Full-featured SQL editor with syntax highlighting and autocomplete
+- **Real-time Feedback**: Instant comparison of student queries against reference solutions
+- **Tiered Hints**: Progressive hint system (Level 1-4) for guided learning
+- **Schema Browser**: Interactive database schema viewer
+- **Question Browser**: Browse and select SQL practice questions by difficulty
+- **Google OAuth**: Secure authentication for UCR.edu users
+- **Progress Tracking**: Visual progress tracking across questions
 
-## React Compiler
+## Installation
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm install
+```
 
-## Expanding the ESLint configuration
+## Development
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm run dev
+```
+
+The application will be available at `http://localhost:5173`
+
+## Build
+
+```bash
+npm run build
+```
+
+## Preview Production Build
+
+```bash
+npm run preview
+```
+
+## Components
+
+- **App.jsx**: Main application component with question selection and query editor
+- **Schema.jsx**: Database schema visualization component
+- **main.jsx**: Application entry point
+
+## Environment Variables
+
+Create a `.env` file in the root directory:
+
+```
+VITE_API_URL=http://localhost:8000
+VITE_GOOGLE_CLIENT_ID=your_google_client_id
+```
+
+## Dependencies
+
+- react: UI framework
+- @monaco-editor/react: Monaco React wrapper for SQL editing
+- @react-oauth/google: Google OAuth integration
+- axios: HTTP client for API communication
+- tailwindcss: Utility-first CSS framework
+
+## API Integration
+
+The frontend communicates with the FastAPI backend running on port 8000. Ensure the backend is running before starting the frontend.
+
+## Usage
+
+1. Sign in with Google OAuth (UCR.edu email required)
+2. Select a question from the question browser
+3. Write your SQL query in the editor
+4. Click "Run Query" to execute and compare against reference
+5. View hints and feedback to improve your solution
